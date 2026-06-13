@@ -11,7 +11,10 @@ const WebsiteIntelligence = () => {
   const [extracting, setExtracting] = useState(false);
   const [filters, setFilters] = useState({ search: '', city: '', minRating: 0 });
 
-  useEffect(() => { fetchLeads(); }, []);
+  useEffect(() => {
+    fetchLeads();
+  }, []);
+
   const fetchLeads = async () => {
     setLoading(true);
     try {
@@ -19,7 +22,7 @@ const WebsiteIntelligence = () => {
       const withWebsite = res.data.filter(l => l.website);
       setLeads(withWebsite);
       setFiltered(withWebsite);
-    } catch (e) {
+    } catch (err) {
       toast.error('Failed to load leads');
     } finally {
       setLoading(false);
@@ -42,7 +45,7 @@ const WebsiteIntelligence = () => {
       const res = await api.post('/email/bulk-extract-from-leads', { leadIds: selectedIds });
       toast.success(`Extracted ${res.data.totalNewEmails} new emails`);
       fetchLeads();
-    } catch (e) {
+    } catch (err) {
       toast.error('Extraction failed');
     } finally {
       setExtracting(false);
@@ -52,7 +55,7 @@ const WebsiteIntelligence = () => {
   const handleDelete = async () => {
     if (!window.confirm(`Delete ${selectedIds.length} leads?`)) return;
     for (const id of selectedIds) await api.delete(`/leads/${id}`);
-    toast.success('Deleted');
+    toast.success(`${selectedIds.length} leads deleted`);
     fetchLeads();
     setSelectedIds([]);
   };
@@ -63,12 +66,13 @@ const WebsiteIntelligence = () => {
       Phone: l.phone,
       Website: l.website,
       Address: l.address,
-      Rating: l.rating
+      Rating: l.rating,
+      ExtractedEmail: l.email || 'Not extracted'
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Leads');
-    XLSX.writeFile(wb, `leads_${Date.now()}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'WebsiteLeads');
+    XLSX.writeFile(wb, `website_leads_${Date.now()}.xlsx`);
     toast.success('Exported');
   };
 
@@ -76,35 +80,69 @@ const WebsiteIntelligence = () => {
     if (selectedIds.length === filtered.length) setSelectedIds([]);
     else setSelectedIds(filtered.map(l => l._id));
   };
+
   const toggleSelect = (id) => {
     if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(i => i !== id));
     else setSelectedIds([...selectedIds, id]);
   };
 
-  if (loading) return <div>Loading leads...</div>;
+  if (loading) return <div className="p-6 text-center">Loading leads...</div>;
 
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-6">Website Intelligence</h1>
-      <div className="flex flex-wrap gap-4 mb-4">
-        <input placeholder="Search name" onChange={e => setFilters({ ...filters, search: e.target.value })} className="border rounded-lg p-2 flex-1" />
-        <input placeholder="City" onChange={e => setFilters({ ...filters, city: e.target.value })} className="border rounded-lg p-2 flex-1" />
-        <input type="number" placeholder="Min rating" onChange={e => setFilters({ ...filters, minRating: parseFloat(e.target.value) })} className="border rounded-lg p-2 w-32" />
+
+      <div className="bg-white p-4 rounded-xl shadow mb-6">
+        <div className="flex flex-wrap gap-4">
+          <input
+            type="text"
+            placeholder="Search by name"
+            value={filters.search}
+            onChange={e => setFilters({ ...filters, search: e.target.value })}
+            className="border rounded-lg p-2 flex-1"
+          />
+          <input
+            type="text"
+            placeholder="City filter"
+            value={filters.city}
+            onChange={e => setFilters({ ...filters, city: e.target.value })}
+            className="border rounded-lg p-2 flex-1"
+          />
+          <div className="flex items-center gap-2">
+            <span className="text-sm">Min Rating:</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.5"
+              value={filters.minRating}
+              onChange={e => setFilters({ ...filters, minRating: parseFloat(e.target.value) })}
+              className="w-32"
+            />
+            <span>{filters.minRating}★</span>
+          </div>
+        </div>
       </div>
-      <div className="flex gap-3 mb-6">
+
+      <div className="bg-white p-3 rounded-xl shadow mb-6 flex flex-wrap gap-3 items-center">
         <button onClick={toggleSelectAll} className="bg-gray-600 text-white px-3 py-1 rounded">Select All</button>
-        <button onClick={extractEmails} disabled={extracting} className="bg-blue-600 text-white px-3 py-1 rounded">{extracting ? 'Extracting...' : 'Extract Emails'}</button>
-        <button onClick={handleDelete} className="bg-red-600 text-white px-3 py-1 rounded">Delete</button>
-        <button onClick={exportExcel} className="bg-green-600 text-white px-3 py-1 rounded">Export Excel</button>
+        <button onClick={extractEmails} disabled={extracting} className="bg-blue-600 text-white px-3 py-1 rounded">
+          {extracting ? 'Extracting...' : '📧 Extract Emails'}
+        </button>
+        <button onClick={handleDelete} className="bg-red-600 text-white px-3 py-1 rounded">🗑️ Delete</button>
+        <button onClick={exportExcel} className="bg-green-600 text-white px-3 py-1 rounded">📊 Export Excel</button>
+        <span className="text-sm ml-auto">{selectedIds.length} selected / {filtered.length} total</span>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white rounded-xl shadow">
+
+      <div className="bg-white rounded-xl shadow-lg overflow-x-auto">
+        <table className="min-w-full text-sm">
           <thead className="bg-gray-100">
             <tr>
               <th className="p-3">Select</th>
-              <th>Name</th>
+              <th className="text-left">Name</th>
               <th>Website</th>
               <th>Extracted Email</th>
+              <th>Phone</th>
               <th>Rating</th>
             </tr>
           </thead>
@@ -114,14 +152,22 @@ const WebsiteIntelligence = () => {
                 <td className="p-3">
                   <input type="checkbox" checked={selectedIds.includes(lead._id)} onChange={() => toggleSelect(lead._id)} />
                 </td>
-                <td className="p-3">{lead.name}</td>
+                <td className="p-3 font-medium">{lead.name}</td>
                 <td className="p-3">
-                  <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 truncate max-w-xs block">{lead.website}</a>
+                  <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-xs block">
+                    {lead.website}
+                  </a>
                 </td>
                 <td className="p-3">{lead.email || '❌ Not extracted'}</td>
+                <td className="p-3">{lead.phone || '-'}</td>
                 <td className="p-3">{lead.rating || '-'}</td>
               </tr>
             ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan="6" className="text-center p-6">No leads with website found</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
