@@ -38,20 +38,23 @@ const WebsiteIntelligence = () => {
     setSelectedIds([]);
   }, [filters, leads]);
 
+  // Copy single URL
   const copyToClipboard = (text, label = 'URL') => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied to clipboard`);
   };
 
+  // Copy all selected URLs
   const copySelectedUrls = () => {
     const selectedLeads = filtered.filter(l => selectedIds.includes(l._id));
     if (selectedLeads.length === 0) return toast.error('No leads selected');
     const urls = selectedLeads.map(l => l.website).join('\n');
-    copyToClipboard(urls, `${selectedLeads.length} URLs`);
+    navigator.clipboard.writeText(urls);
+    toast.success(`Copied ${selectedLeads.length} URLs to clipboard`);
   };
 
   const extractEmails = async () => {
-    if (selectedIds.length === 0) return toast.error('Select leads');
+    if (selectedIds.length === 0) return toast.error('Select leads first');
     setExtracting(true);
     try {
       const res = await api.post('/email/bulk-extract-from-leads', { leadIds: selectedIds });
@@ -65,6 +68,7 @@ const WebsiteIntelligence = () => {
   };
 
   const handleDelete = async () => {
+    if (selectedIds.length === 0) return toast.error('No leads selected');
     if (!window.confirm(`Delete ${selectedIds.length} leads?`)) return;
     for (const id of selectedIds) await api.delete(`/leads/${id}`);
     toast.success(`${selectedIds.length} leads deleted`);
@@ -106,47 +110,57 @@ const WebsiteIntelligence = () => {
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-xl shadow mb-6">
-        <div className="flex flex-wrap gap-4">
-          <input
-            type="text"
-            placeholder="Search by name"
-            value={filters.search}
-            onChange={e => setFilters({ ...filters, search: e.target.value })}
-            className="border rounded-lg p-2 flex-1"
-          />
-          <input
-            type="text"
-            placeholder="City filter"
-            value={filters.city}
-            onChange={e => setFilters({ ...filters, city: e.target.value })}
-            className="border rounded-lg p-2 flex-1"
-          />
-          <div className="flex items-center gap-2">
-            <span className="text-sm">Min Rating:</span>
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex-1">
+            <label className="block text-xs text-gray-500 mb-1">Search by name</label>
             <input
-              type="range"
-              min="0"
-              max="5"
-              step="0.5"
-              value={filters.minRating}
-              onChange={e => setFilters({ ...filters, minRating: parseFloat(e.target.value) })}
-              className="w-32"
+              type="text"
+              placeholder="Business name"
+              value={filters.search}
+              onChange={e => setFilters({ ...filters, search: e.target.value })}
+              className="w-full border rounded-lg p-2"
             />
-            <span>{filters.minRating}★</span>
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs text-gray-500 mb-1">City filter</label>
+            <input
+              type="text"
+              placeholder="e.g., Karachi"
+              value={filters.city}
+              onChange={e => setFilters({ ...filters, city: e.target.value })}
+              className="w-full border rounded-lg p-2"
+            />
+          </div>
+          <div className="w-48">
+            <label className="block text-xs text-gray-500 mb-1">Min Rating</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min="0"
+                max="5"
+                step="0.5"
+                value={filters.minRating}
+                onChange={e => setFilters({ ...filters, minRating: parseFloat(e.target.value) })}
+                className="flex-1"
+              />
+              <span className="text-sm font-medium">{filters.minRating}★</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="bg-white p-3 rounded-xl shadow mb-6 flex flex-wrap gap-3 items-center">
-        <button onClick={toggleSelectAll} className="bg-gray-600 text-white px-3 py-1 rounded">Select All</button>
-        <button onClick={extractEmails} disabled={extracting} className="bg-blue-600 text-white px-3 py-1 rounded">
-          {extracting ? 'Extracting...' : '📧 Extract Emails'}
-        </button>
-        <button onClick={copySelectedUrls} className="bg-cyan-600 text-white px-3 py-1 rounded">📋 Copy Selected URLs</button>
-        <button onClick={handleDelete} className="bg-red-600 text-white px-3 py-1 rounded">🗑️ Delete</button>
-        <button onClick={exportExcel} className="bg-green-600 text-white px-3 py-1 rounded">📊 Export Excel</button>
-        <span className="text-sm ml-auto">{selectedIds.length} selected / {filtered.length} total</span>
+      {/* Action Buttons – aligned left */}
+      <div className="bg-white p-3 rounded-xl shadow mb-6 flex flex-wrap items-center justify-between">
+        <div className="flex flex-wrap gap-2">
+          <button onClick={toggleSelectAll} className="bg-gray-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1">☑️ Select All</button>
+          <button onClick={extractEmails} disabled={extracting} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1">
+            {extracting ? '⏳ Extracting...' : '📧 Extract Emails'}
+          </button>
+          <button onClick={copySelectedUrls} className="bg-cyan-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1">📋 Copy Selected URLs</button>
+          <button onClick={handleDelete} className="bg-red-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1">🗑️ Delete</button>
+          <button onClick={exportExcel} className="bg-green-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1">📊 Export Excel</button>
+        </div>
+        <div className="text-sm font-medium mt-2 sm:mt-0">{selectedIds.length} selected / {filtered.length} total</div>
       </div>
 
       {/* Table */}
@@ -154,30 +168,29 @@ const WebsiteIntelligence = () => {
         <table className="min-w-full text-sm">
           <thead className="bg-gray-100">
             <tr>
-              <th className="p-3">Select</th>
-              <th className="text-left">Name</th>
-              <th>Website</th>
-              <th>Extracted Email</th>
-              <th>Phone</th>
-              <th>Rating</th>
-              <th>Actions</th>
+              <th className="p-3 w-10">Select</th>
+              <th className="text-left p-3">Name</th>
+              <th className="p-3">Website</th>
+              <th className="p-3">Extracted Email</th>
+              <th className="p-3">Phone</th>
+              <th className="p-3">Rating</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map(lead => (
               <tr key={lead._id} className="border-t hover:bg-gray-50">
-                <td className="p-3">
+                <td className="p-3 text-center">
                   <input type="checkbox" checked={selectedIds.includes(lead._id)} onChange={() => toggleSelect(lead._id)} />
                 </td>
-                <td className="p-3 font-medium">{lead.name}</td>
+                <td className="p-3 font-medium max-w-xs truncate">{lead.name}</td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
-                    <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-xs block">
+                    <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-xs">
                       {lead.website}
                     </a>
                     <button
-                      onClick={() => copyToClipboard(lead.website, 'Website URL')}
-                      className="text-gray-500 hover:text-gray-700"
+                      onClick={() => copyToClipboard(lead.website, 'URL')}
+                      className="text-gray-500 hover:text-gray-700 transition"
                       title="Copy URL"
                     >
                       📋
@@ -187,14 +200,11 @@ const WebsiteIntelligence = () => {
                 <td className="p-3">{lead.email || '❌ Not extracted'}</td>
                 <td className="p-3">{lead.phone || '-'}</td>
                 <td className="p-3">{lead.rating || '-'}</td>
-                <td className="p-3">
-                  <button onClick={() => copyToClipboard(lead.website, 'URL')} className="text-gray-500 hover:text-gray-700 mr-2" title="Copy URL">📋</button>
-                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan="7" className="text-center p-6">No leads with website found</td>
+                <td colSpan="6" className="text-center p-10 text-gray-500">No leads with website found</td>
               </tr>
             )}
           </tbody>
