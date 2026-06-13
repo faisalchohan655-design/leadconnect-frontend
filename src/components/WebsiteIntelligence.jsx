@@ -38,6 +38,18 @@ const WebsiteIntelligence = () => {
     setSelectedIds([]);
   }, [filters, leads]);
 
+  const copyToClipboard = (text, label = 'URL') => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied to clipboard`);
+  };
+
+  const copySelectedUrls = () => {
+    const selectedLeads = filtered.filter(l => selectedIds.includes(l._id));
+    if (selectedLeads.length === 0) return toast.error('No leads selected');
+    const urls = selectedLeads.map(l => l.website).join('\n');
+    copyToClipboard(urls, `${selectedLeads.length} URLs`);
+  };
+
   const extractEmails = async () => {
     if (selectedIds.length === 0) return toast.error('Select leads');
     setExtracting(true);
@@ -92,6 +104,7 @@ const WebsiteIntelligence = () => {
     <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-6">Website Intelligence</h1>
 
+      {/* Filters */}
       <div className="bg-white p-4 rounded-xl shadow mb-6">
         <div className="flex flex-wrap gap-4">
           <input
@@ -124,16 +137,19 @@ const WebsiteIntelligence = () => {
         </div>
       </div>
 
+      {/* Action Buttons */}
       <div className="bg-white p-3 rounded-xl shadow mb-6 flex flex-wrap gap-3 items-center">
         <button onClick={toggleSelectAll} className="bg-gray-600 text-white px-3 py-1 rounded">Select All</button>
         <button onClick={extractEmails} disabled={extracting} className="bg-blue-600 text-white px-3 py-1 rounded">
           {extracting ? 'Extracting...' : '📧 Extract Emails'}
         </button>
+        <button onClick={copySelectedUrls} className="bg-cyan-600 text-white px-3 py-1 rounded">📋 Copy Selected URLs</button>
         <button onClick={handleDelete} className="bg-red-600 text-white px-3 py-1 rounded">🗑️ Delete</button>
         <button onClick={exportExcel} className="bg-green-600 text-white px-3 py-1 rounded">📊 Export Excel</button>
         <span className="text-sm ml-auto">{selectedIds.length} selected / {filtered.length} total</span>
       </div>
 
+      {/* Table */}
       <div className="bg-white rounded-xl shadow-lg overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-100">
@@ -144,28 +160,41 @@ const WebsiteIntelligence = () => {
               <th>Extracted Email</th>
               <th>Phone</th>
               <th>Rating</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map(lead => (
-              <tr key={lead._id} className="border-t">
+              <tr key={lead._id} className="border-t hover:bg-gray-50">
                 <td className="p-3">
                   <input type="checkbox" checked={selectedIds.includes(lead._id)} onChange={() => toggleSelect(lead._id)} />
                 </td>
                 <td className="p-3 font-medium">{lead.name}</td>
                 <td className="p-3">
-                  <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-xs block">
-                    {lead.website}
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-xs block">
+                      {lead.website}
+                    </a>
+                    <button
+                      onClick={() => copyToClipboard(lead.website, 'Website URL')}
+                      className="text-gray-500 hover:text-gray-700"
+                      title="Copy URL"
+                    >
+                      📋
+                    </button>
+                  </div>
                 </td>
                 <td className="p-3">{lead.email || '❌ Not extracted'}</td>
                 <td className="p-3">{lead.phone || '-'}</td>
                 <td className="p-3">{lead.rating || '-'}</td>
+                <td className="p-3">
+                  <button onClick={() => copyToClipboard(lead.website, 'URL')} className="text-gray-500 hover:text-gray-700 mr-2" title="Copy URL">📋</button>
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan="6" className="text-center p-6">No leads with website found</td>
+                <td colSpan="7" className="text-center p-6">No leads with website found</td>
               </tr>
             )}
           </tbody>
