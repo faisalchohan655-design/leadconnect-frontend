@@ -28,65 +28,85 @@ const CampaignOutreach = () => {
   }, [filters, leads]);
 
   const deleteLead = async (id) => {
-    if (window.confirm('Delete lead?')) {
+    if (window.confirm('Delete this lead?')) {
       await api.delete(`/leads/${id}`);
       setLeads(leads.filter(l => l._id !== id));
       toast.success('Deleted');
     }
   };
+
   const bulkDelete = async () => {
     if (!window.confirm(`Delete ${selected.length} leads?`)) return;
     for (const id of selected) await api.delete(`/leads/${id}`);
     setLeads(leads.filter(l => !selected.includes(l._id)));
     setSelected([]);
-    toast.success('Deleted');
+    toast.success(`${selected.length} leads deleted`);
   };
+
   const bulkWhatsApp = () => {
     const withPhone = leads.filter(l => selected.includes(l._id) && l.phone);
     if (withPhone.length === 0) return toast.error('No phone numbers');
     withPhone.forEach(l => window.open(`https://wa.me/${l.phone.replace(/\D/g, '')}?text=Hello`));
     toast.success(`Opened ${withPhone.length} chats`);
   };
+
   const bulkEmail = () => {
     const withEmail = leads.filter(l => selected.includes(l._id) && l.email);
     if (withEmail.length === 0) return toast.error('No emails');
-    window.location.href = `mailto:${withEmail.map(l => l.email).join(',')}?subject=Campaign`;
+    window.location.href = `mailto:${withEmail.map(l => l.email).join(',')}?subject=Business%20Opportunity`;
+    toast.success(`Opened email client for ${withEmail.length} leads`);
   };
+
+  // Fixed CSV export (UTF-8 BOM, proper line breaks)
   const exportCSV = () => {
+    if (filtered.length === 0) return toast.error('No data to export');
     const headers = ['Name', 'Phone', 'Email', 'Rating', 'Source'];
-    const rows = filtered.map(l => [l.name, l.phone, l.email, l.rating, l.source]);
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `campaign_${Date.now()}.csv`;
-    a.click();
-    URL.revokeObjectURL(blob);
+    const rows = filtered.map(l => [l.name, l.phone, l.email, l.rating, l.source || 'Google']);
+    let csvContent = headers.join(',') + '\n';
+    rows.forEach(row => {
+      const escapedRow = row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',');
+      csvContent += escapedRow + '\n';
+    });
+    // Add UTF-8 BOM for Excel compatibility
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', `campaign_leads_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     toast.success('CSV exported');
   };
+
   const exportExcel = () => {
     const data = filtered.map(l => ({
-      Name: l.name, Phone: l.phone, Email: l.email, Rating: l.rating, Source: l.source
+      Name: l.name, Phone: l.phone, Email: l.email, Rating: l.rating, Source: l.source || 'Google'
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Campaign');
-    XLSX.writeFile(wb, `campaign_${Date.now()}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'CampaignLeads');
+    XLSX.writeFile(wb, `campaign_leads_${Date.now()}.xlsx`);
     toast.success('Excel exported');
   };
+
   const toggleSelectAll = () => {
     if (selected.length === filtered.length) setSelected([]);
     else setSelected(filtered.map(l => l._id));
   };
+
   const toggleSelect = (id) => {
     if (selected.includes(id)) setSelected(selected.filter(i => i !== id));
     else setSelected([...selected, id]);
   };
-  if (loading) return <div>Loading leads...</div>;
+
+  if (loading) return <div className="p-6 text-center">Loading leads...</div>;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent mb-6">Campaign Outreach</h1>
+
       <div className="bg-white rounded-2xl shadow-lg p-5 mb-6">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
@@ -113,6 +133,7 @@ const CampaignOutreach = () => {
           </div>
         </div>
       </div>
+
       <div className="bg-white rounded-xl shadow p-3 mb-6 flex flex-wrap items-center justify-between">
         <div className="flex gap-2">
           <button onClick={toggleSelectAll} className="bg-gray-600 text-white px-3 py-1 rounded flex items-center gap-1"><FaCheckSquare /> Select All</button>
@@ -126,6 +147,7 @@ const CampaignOutreach = () => {
         </div>
         <div>{selected.length} selected / {filtered.length} total</div>
       </div>
+
       <div className="bg-white rounded-xl shadow-lg overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50">
