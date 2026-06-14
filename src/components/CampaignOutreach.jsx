@@ -43,26 +43,6 @@ const CampaignOutreach = () => {
     toast.success(`${selected.length} leads deleted`);
   };
 
-  const openWhatsAppBroadcast = () => {
-    const selectedLeads = filtered.filter(l => selected.includes(l._id) && l.phone);
-    if (selectedLeads.length === 0) return toast.error('No phone numbers selected');
-    if (selectedLeads.length > 15) {
-      toast.error(`Max 15 leads for WhatsApp broadcast. You selected ${selectedLeads.length}.`);
-      return;
-    }
-    const numbers = selectedLeads.map(l => {
-      let phone = l.phone.replace(/\D/g, '');
-      if (!phone.startsWith('92') && !phone.startsWith('+92')) {
-        if (phone.startsWith('0')) phone = '92' + phone.substring(1);
-        else if (phone.length === 10) phone = '92' + phone;
-      }
-      if (!phone.startsWith('+')) phone = '+' + phone;
-      return phone;
-    }).join(',');
-    window.open(`https://web.whatsapp.com/accept?phone=${numbers}&broadcast=1`, '_blank');
-    toast.success(`Opening WhatsApp broadcast for ${selectedLeads.length} numbers.`);
-  };
-
   const bulkEmail = () => {
     const withEmail = leads.filter(l => selected.includes(l._id) && l.email);
     if (withEmail.length === 0) return toast.error('No emails selected');
@@ -130,11 +110,10 @@ const CampaignOutreach = () => {
         </div>
       </div>
 
-      {/* Action Buttons – Single Line, Same Icon Size */}
+      {/* Action Buttons */}
       <div className="bg-white rounded-xl shadow p-3 mb-6 flex flex-wrap items-center justify-between">
         <div className="flex flex-wrap gap-2 items-center">
           <button onClick={toggleSelectAll} className="bg-gray-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm"><FaCheckSquare size={18} /> Select All</button>
-          <button onClick={openWhatsAppBroadcast} className="bg-green-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm"><FaWhatsapp size={18} /> WhatsApp</button>
           <button onClick={bulkEmail} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm"><FaEnvelope size={18} /> Email</button>
           <button onClick={bulkDelete} className="bg-red-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm"><FaTrash size={18} /> Delete</button>
           <button onClick={exportCSV} className="bg-gray-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm"><FaFileCsv size={18} /> CSV</button>
@@ -143,10 +122,20 @@ const CampaignOutreach = () => {
         <div className="text-sm font-medium">{selected.length} selected / {filtered.length} total</div>
       </div>
 
-      {/* Table */}
+      {/* Table with WhatsApp icon at start of Actions */}
       <div className="bg-white rounded-xl shadow-lg overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-50"><tr><th className="p-3"><button onClick={toggleSelectAll}>{selected.length === filtered.length ? <FaCheckSquare size={16} /> : <FaSquare size={16} />}</button></th><th>Name</th><th>Phone</th><th>Email</th><th>Rating</th><th>Source</th><th>Actions</th></tr></thead>
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="p-3"><button onClick={toggleSelectAll}>{selected.length === filtered.length ? <FaCheckSquare size={16} /> : <FaSquare size={16} />}</button></th>
+              <th className="text-left">Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Rating</th>
+              <th>Source</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
           <tbody>
             {filtered.map(lead => (
               <tr key={lead._id} className="border-t">
@@ -156,10 +145,20 @@ const CampaignOutreach = () => {
                 <td className="p-3">{lead.email || '-'}</td>
                 <td className="p-3">{lead.rating || '-'}</td>
                 <td className="p-3">{lead.source || 'Google'}</td>
-                <td className="p-3 flex gap-2">
-                  {lead.phone && <a href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`} target="_blank" className="text-green-600">📱</a>}
-                  {lead.email && <a href={`mailto:${lead.email}`} className="text-blue-600">✉️</a>}
-                  <button onClick={() => deleteLead(lead._id)} className="text-red-500">🗑️</button>
+                <td className="p-3 flex gap-2 items-center">
+                  {lead.phone && (
+                    <a href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`} target="_blank" className="text-green-600 hover:text-green-800" title="Send WhatsApp">
+                      <FaWhatsapp size={20} />
+                    </a>
+                  )}
+                  {lead.email && (
+                    <a href={`mailto:${lead.email}`} className="text-blue-600 hover:text-blue-800" title="Send Email">
+                      <FaEnvelope size={20} />
+                    </a>
+                  )}
+                  <button onClick={() => deleteLead(lead._id)} className="text-red-500 hover:text-red-700" title="Delete Lead">
+                    <FaTrash size={18} />
+                  </button>
                 </td>
               </tr>
             ))}
