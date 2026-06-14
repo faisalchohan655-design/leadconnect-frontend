@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api';
-import { FaWhatsapp, FaEnvelope, FaTrash, FaCheckSquare, FaSquare, FaFileExcel, FaFileCsv, FaCopy } from 'react-icons/fa';
+import { FaWhatsapp, FaEnvelope, FaTrash, FaCheckSquare, FaSquare, FaFileExcel, FaFileCsv } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 
@@ -10,8 +10,6 @@ const CampaignOutreach = () => {
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ search: '', city: '', minRating: 0, source: 'all' });
-  const [showGuide, setShowGuide] = useState(false);
-  const [copiedNumbers, setCopiedNumbers] = useState('');
 
   useEffect(() => {
     api.get('/leads')
@@ -45,16 +43,14 @@ const CampaignOutreach = () => {
     toast.success(`${selected.length} leads deleted`);
   };
 
-  // NEW: Copy numbers for WhatsApp Broadcast
-  const copyForWhatsAppBroadcast = () => {
+  const openWhatsAppBroadcast = () => {
     const selectedLeads = filtered.filter(l => selected.includes(l._id) && l.phone);
     if (selectedLeads.length === 0) return toast.error('No phone numbers selected');
     if (selectedLeads.length > 15) {
-      toast.error(`You selected ${selectedLeads.length} leads. Max 15 for WhatsApp broadcast. Please select fewer.`);
+      toast.error(`Max 15 leads for WhatsApp broadcast. You selected ${selectedLeads.length}.`);
       return;
     }
-    // Format numbers for WhatsApp (one per line, with country code)
-    const formattedNumbers = selectedLeads.map(l => {
+    const numbers = selectedLeads.map(l => {
       let phone = l.phone.replace(/\D/g, '');
       if (!phone.startsWith('92') && !phone.startsWith('+92')) {
         if (phone.startsWith('0')) phone = '92' + phone.substring(1);
@@ -62,12 +58,9 @@ const CampaignOutreach = () => {
       }
       if (!phone.startsWith('+')) phone = '+' + phone;
       return phone;
-    }).join('\n');
-    
-    navigator.clipboard.writeText(formattedNumbers);
-    setCopiedNumbers(formattedNumbers);
-    setShowGuide(true);
-    toast.success(`${selectedLeads.length} numbers copied!`);
+    }).join(',');
+    window.open(`https://web.whatsapp.com/accept?phone=${numbers}&broadcast=1`, '_blank');
+    toast.success(`Opening WhatsApp broadcast for ${selectedLeads.length} numbers.`);
   };
 
   const bulkEmail = () => {
@@ -130,81 +123,30 @@ const CampaignOutreach = () => {
       {/* Filters */}
       <div className="bg-white rounded-2xl shadow-lg p-5 mb-6">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label>Min Rating</label>
-            <input type="range" min="0" max="5" step="0.5" value={filters.minRating} onChange={e => setFilters({ ...filters, minRating: parseFloat(e.target.value) })} className="w-full" />
-            <span>{filters.minRating}★</span>
-          </div>
-          <div>
-            <label>City</label>
-            <input type="text" placeholder="e.g., Karachi" value={filters.city} onChange={e => setFilters({ ...filters, city: e.target.value })} className="border rounded-lg p-2 w-full" />
-          </div>
-          <div>
-            <label>Search by name</label>
-            <input type="text" placeholder="Business name" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} className="border rounded-lg p-2 w-full" />
-          </div>
-          <div>
-            <label>Lead Source</label>
-            <select value={filters.source} onChange={e => setFilters({ ...filters, source: e.target.value })} className="border rounded-lg p-2 w-full">
-              <option value="all">All</option>
-              <option value="google">Google Maps</option>
-              <option value="facebook">Facebook</option>
-              <option value="email_extracted">Email Extractor</option>
-            </select>
-          </div>
+          <div><label>Min Rating</label><input type="range" min="0" max="5" step="0.5" value={filters.minRating} onChange={e => setFilters({ ...filters, minRating: parseFloat(e.target.value) })} className="w-full" /><span>{filters.minRating}★</span></div>
+          <div><label>City</label><input type="text" placeholder="e.g., Karachi" value={filters.city} onChange={e => setFilters({ ...filters, city: e.target.value })} className="border rounded-lg p-2 w-full" /></div>
+          <div><label>Search by name</label><input type="text" placeholder="Business name" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} className="border rounded-lg p-2 w-full" /></div>
+          <div><label>Lead Source</label><select value={filters.source} onChange={e => setFilters({ ...filters, source: e.target.value })} className="border rounded-lg p-2 w-full"><option value="all">All</option><option value="google">Google Maps</option><option value="facebook">Facebook</option><option value="email_extracted">Email Extractor</option></select></div>
         </div>
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons – Single Line, Same Icon Size */}
       <div className="bg-white rounded-xl shadow p-3 mb-6 flex flex-wrap items-center justify-between">
-        <div className="flex flex-wrap gap-2">
-          <button onClick={toggleSelectAll} className="bg-gray-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><FaCheckSquare /> Select All</button>
-          <button onClick={copyForWhatsAppBroadcast} className="bg-cyan-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><FaCopy /> Copy for WhatsApp Broadcast</button>
-          <button onClick={bulkEmail} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><FaEnvelope /> Email</button>
-          <button onClick={bulkDelete} className="bg-red-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><FaTrash /> Delete</button>
+        <div className="flex flex-wrap gap-2 items-center">
+          <button onClick={toggleSelectAll} className="bg-gray-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm"><FaCheckSquare size={18} /> Select All</button>
+          <button onClick={openWhatsAppBroadcast} className="bg-green-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm"><FaWhatsapp size={18} /> WhatsApp</button>
+          <button onClick={bulkEmail} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm"><FaEnvelope size={18} /> Email</button>
+          <button onClick={bulkDelete} className="bg-red-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm"><FaTrash size={18} /> Delete</button>
+          <button onClick={exportCSV} className="bg-gray-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm"><FaFileCsv size={18} /> CSV</button>
+          <button onClick={exportExcel} className="bg-green-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm"><FaFileExcel size={18} /> Excel</button>
         </div>
-        <div className="flex gap-2">
-          <button onClick={exportCSV} className="bg-gray-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><FaFileCsv /> CSV</button>
-          <button onClick={exportExcel} className="bg-green-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><FaFileExcel /> Excel</button>
-        </div>
-        <div className="text-sm">{selected.length} selected / {filtered.length} total</div>
+        <div className="text-sm font-medium">{selected.length} selected / {filtered.length} total</div>
       </div>
-
-      {/* Guide Modal */}
-      {showGuide && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4">📋 Numbers Copied!</h2>
-            <p className="text-gray-600 mb-3">Follow these steps to send WhatsApp broadcast:</p>
-            <ol className="list-decimal list-inside space-y-2 text-gray-700 mb-4">
-              <li>Open <strong>WhatsApp</strong> on your phone or Web</li>
-              <li>Go to <strong>Chats → New Broadcast</strong></li>
-              <li>Long‑press / paste the numbers</li>
-              <li>Write your message and <strong>Send</strong></li>
-            </ol>
-            <div className="bg-gray-100 p-2 rounded mb-4 text-xs font-mono break-all">
-              {copiedNumbers.split('\n').slice(0, 3).map((n, i) => <div key={i}>{n}</div>)}
-              {copiedNumbers.split('\n').length > 3 && <div>...</div>}
-            </div>
-            <button onClick={() => setShowGuide(false)} className="w-full bg-indigo-600 text-white py-2 rounded-lg">Got it</button>
-          </div>
-        </div>
-      )}
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-lg overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="p-3"><button onClick={toggleSelectAll}>{selected.length === filtered.length ? <FaCheckSquare /> : <FaSquare />}</button></th>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Email</th>
-              <th>Rating</th>
-              <th>Source</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
+          <thead className="bg-gray-50"><tr><th className="p-3"><button onClick={toggleSelectAll}>{selected.length === filtered.length ? <FaCheckSquare size={16} /> : <FaSquare size={16} />}</button></th><th>Name</th><th>Phone</th><th>Email</th><th>Rating</th><th>Source</th><th>Actions</th></tr></thead>
           <tbody>
             {filtered.map(lead => (
               <tr key={lead._id} className="border-t">
